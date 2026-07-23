@@ -5,6 +5,7 @@
 | 名称 | 描述 |
 |---|---|
 | `global-commodity-today` | 查询伦敦金、伦敦银、伦敦铜、纽约铂、布伦特原油的实时价格与当日涨跌幅，支持行情简报和单品种查询。 |
+| `ashare-daily-review` | 生成 A 股每日复盘报告，覆盖市场概览、技术形态、板块涨跌、关注板块、外围市场与明日策略，支持输出 HTML 与 PNG 长图。 |
 
 ## 学术写作
 
@@ -20,7 +21,8 @@
 ```bash
 mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
 cp -R skills/global-commodity-today "${CODEX_HOME:-$HOME/.codex}/skills/"
+cp -R skills/ashare-daily-review "${CODEX_HOME:-$HOME/.codex}/skills/"
 cp -R skills/paper-zh-to-en "${CODEX_HOME:-$HOME/.codex}/skills/"
 ```
 
-3. 重启 Agent 会话后即可使用该 skill。
+3. 重启 Agent 会话后即可使用对应的 skill。

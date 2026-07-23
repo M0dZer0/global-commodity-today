@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>A股每日复盘报告 · {{REPORT_DATE}}</title>
+<!--
+  ============================================================================
+  A股每日复盘报告 · HTML Schema（填充模板 · 移动端高清版）
+  ============================================================================
+  版式设计目标：导出 PNG 在手机上清晰阅读
+  - 页面宽 720px，正文字号 30px，每行约 20 个汉字
+  - 全部单列布局，绝不依赖缩放
+  - 导出：Chrome 无头截图 --window-size=800,<实测高度> --force-device-scale-factor=2
+  填充规则：
+  1. 所有 {{TOKEN}} 均为占位符，数据来源与命令见 @references/data-schema.md
+  2. 以 *_ANALYSIS 结尾的占位符为 LLM 撰写的分析内容（<li> 列表项或段落）
+  3. 涨用 class="up"（红），跌用 class="down"（绿）——A股惯例
+  4. 情绪四选一：给对应 <span class="opt"> 追加 " on" 类，并删除其余 on
+  5. 填充完成后自检：grep -c '{{' 应为 0
+  ============================================================================
+-->
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background:#e9edf4; color:#1f2d3d; padding:32px; }
+  .page { width:720px; margin:0 auto; background:#fff; border-radius:20px; box-shadow:0 8px 36px rgba(20,35,70,.12); overflow:hidden; }
+  .up { color:#e54545; } .down { color:#18a058; }
+  header { background:linear-gradient(135deg,#16243d 0%,#274070 100%); color:#fff; padding:52px 44px; }
+  header h1 { font-size:46px; letter-spacing:3px; }
+  header .sub { margin-top:16px; font-size:26px; opacity:.8; line-height:1.9; }
+  section { padding:44px 40px 16px; }
+  h2 { font-size:38px; border-left:10px solid #274070; padding-left:18px; margin-bottom:30px; color:#16243d; letter-spacing:2px; }
+  h3 { font-size:32px; margin:34px 0 18px; color:#274070; }
+  .cards { display:grid; grid-template-columns:1fr; gap:20px; }
+  .card { border:2px solid #e6eaf2; border-radius:18px; padding:28px 32px; background:#fafbfe; }
+  .card .nm { font-size:28px; color:#5e6d82; font-weight:600; }
+  .card .px { font-size:56px; font-weight:700; margin:10px 0 6px; }
+  .card .chg { font-size:32px; font-weight:600; }
+  .card .amt { font-size:24px; color:#909399; margin-top:12px; line-height:1.8; }
+  table { width:100%; border-collapse:collapse; font-size:24px; margin:18px 0 26px; }
+  th,td { padding:16px 6px; border-bottom:2px solid #eef1f6; text-align:center; }
+  th { background:#f2f5fb; color:#45526b; font-weight:600; }
+  td.l { text-align:left; }
+  .senti { display:flex; gap:16px; align-items:center; margin:18px 0 24px; flex-wrap:wrap; }
+  .senti .opt { padding:12px 30px; border-radius:30px; border:2px solid #dcdfe6; font-size:30px; color:#909399; }
+  .senti .opt.on { background:#d03050; border-color:#d03050; color:#fff; font-weight:700; }
+  .volbar { display:flex; height:52px; border-radius:12px; overflow:hidden; font-size:24px; color:#fff; margin:16px 0 10px; }
+  .volbar div { display:flex; align-items:center; justify-content:center; }
+  ul { padding-left:36px; font-size:30px; line-height:2.0; color:#3b4a60; }
+  ul li { margin-bottom:18px; }
+  .sig { font-weight:700; color:#16243d; }
+  .note { font-size:24px; color:#909399; margin-top:10px; line-height:1.9; }
+  .sec-card { border:2px solid #e6eaf2; border-radius:18px; padding:30px 34px; margin-bottom:26px; background:#fafbfe; }
+  .concl { background:#f0f5ff; border:2px solid #d6e4ff; border-radius:18px; padding:26px 32px; font-size:30px; line-height:2.0; color:#2c3e57; margin-bottom:24px; }
+  footer { padding:34px 40px 44px; font-size:22px; color:#a0a8b8; line-height:2; border-top:2px solid #eef1f6; margin-top:34px; }
+  .kv { font-size:30px; line-height:2.0; color:#3b4a60; background:#f7f9fc; border-radius:14px; padding:20px 26px; margin-top:12px; }
+  .pt { font-size:24px; color:#909399; font-weight:400; margin-left:10px; }
+  /* 策略卡片（替代宽表格，移动端可读） */
+  .stg-card { border:2px solid #e6eaf2; border-radius:18px; padding:24px 30px; margin-bottom:20px; background:#fafbfe; }
+  .stg-card .stg-head { font-size:30px; font-weight:700; color:#16243d; margin-bottom:10px; }
+  .stg-card .stg-head .stg-px { font-size:24px; color:#909399; font-weight:400; margin-left:12px; }
+  .stg-card .stg-row { font-size:28px; line-height:1.95; color:#3b4a60; margin-top:8px; }
+  .stg-card .stg-row b { color:#274070; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+  <h1>A股每日复盘报告</h1>
+  <div class="sub">{{REPORT_DATE}}（{{REPORT_WEEKDAY}}）收盘<br>数据来源：腾讯自选股 / 财联社 / 上证报 · 涨红跌绿</div>
+</header>
+
+<!-- ==================== 一、市场概览 ==================== -->
+<section>
+  <h2>一、市场概览</h2>
+  <div class="cards">
+    <div class="card">
+      <div class="nm">上证指数</div>
+      <div class="px {{SH_DIR}}">{{SH_CLOSE}}</div>
+      <div class="chg {{SH_DIR}}">{{SH_CHG}}（{{SH_CHG_PCT}}）</div>
+      <div class="amt">成交 {{SH_AMT}} · 近5日 {{SH_CHG_5D}} · 近20日 {{SH_CHG_20D}}</div>
+    </div>
+    <div class="card">
+      <div class="nm">深证成指</div>
+      <div class="px {{SZ_DIR}}">{{SZ_CLOSE}}</div>
+      <div class="chg {{SZ_DIR}}">{{SZ_CHG}}（{{SZ_CHG_PCT}}）</div>
+      <div class="amt">成交 {{SZ_AMT}} · 近5日 {{SZ_CHG_5D}} · 近20日 {{SZ_CHG_20D}}</div>
+    </div>
+    <div class="card">
+      <div class="nm">创业板指</div>
+      <div class="px {{CY_DIR}}">{{CY_CLOSE}}</div>
+      <div class="chg {{CY_DIR}}">{{CY_CHG}}（{{CY_CHG_PCT}}）</div>
+      <div class="amt">成交 {{CY_AMT}} · 近5日 {{CY_CHG_5D}} · 近20日 {{CY_CHG_20D}}</div>
+    </div>
+    <div class="card">
+      <div class="nm">科创50</div>
+      <div class="px {{KC_DIR}}">{{KC_CLOSE}}</div>
+      <div class="chg {{KC_DIR}}">{{KC_CHG}}（{{KC_CHG_PCT}}）</div>
+      <div class="amt">成交 {{KC_AMT}} · 近5日 {{KC_CHG_5D}} · 近20日 {{KC_CHG_20D}}</div>
+    </div>
+  </div>
+
+  <h3>市场情绪</h3>
+  <!-- 情绪四选一：把判定结果那一项的 class 改为 "opt on"，其余保持 "opt" -->
+  <div class="senti">
+    <span class="opt{{SENTI_ON_HOT}}">过热</span>
+    <span class="opt{{SENTI_ON_BULL}}">偏多</span>
+    <span class="opt{{SENTI_ON_BEAR}}">偏空</span>
+    <span class="opt{{SENTI_ON_PANIC}}">恐慌</span>
+  </div>
+  <div class="kv" style="margin-bottom:22px">结论：<b style="color:#d03050">{{SENTI_RESULT}}</b> —— {{SENTI_SUBTITLE}}</div>
+  <!-- 情绪判定依据（3~4 条 <li>）：必须综合涨跌家数/涨跌停/量能/画像评分/技术形态，
+       禁止仅按当日指数涨跌下结论；需说明为什么不属于相邻档（如偏空而非恐慌） -->
+  {{SENTI_ANALYSIS}}
+
+  <h3>整体成交量</h3>
+  <div class="kv">沪深两市合计成交 <b>{{TOTAL_AMT}}亿</b>，较昨日（{{TOTAL_AMT_Y}}亿）<b class="{{VOL_DIR}}">{{TOTAL_AMT_DIFF}}（{{TOTAL_AMT_DIFF_PCT}}）</b>。<br>{{VOL_COMMENT}}</div>
+  <div class="volbar">
+    <div style="width:{{VOL_BAR_T}}%;background:#274070">今日 {{TOTAL_AMT}}亿</div>
+    <div style="width:{{VOL_BAR_Y}}%;background:#8fa3c8">昨日 {{TOTAL_AMT_Y}}亿</div>
+  </div>
+  <div class="note">沪市 {{SH_AMT}}（{{SH_AMT_CHG}}）· 深市 {{SZ_AMT}}（{{SZ_AMT_CHG}}）<br>创业板 {{CY_AMT}}（{{CY_AMT_CHG}}）· 科创50 {{KC_AMT}}（{{KC_AMT_CHG}}）</div>
+</section>
+
+<!-- ==================== 二、技术形态 ==================== -->
+<section>
+  <h2>二、技术形态（按信号显著性排序）</h2>
+  <!-- 每个指数 4~5 条 <li>，按当日信号显著性排序（最显著的放第①条），
+       每条以 ①②③ 编号 + .sig 加粗结论开头；不得固定按 MACD/RSI/BOLL 顺序罗列。
+       文末 .kv 给出支撑位（近→远）与压力位（近→远） -->
+
+  <div class="sec-card">
+    <h3 style="margin-top:0">上证指数 <span class="{{SH_DIR}}">{{SH_CLOSE}}（{{SH_CHG_PCT}}）</span></h3>
+    {{T_SH_ANALYSIS}}
+    <div class="kv">支撑位：{{T_SH_SUPPORT}}<br>压力位：{{T_SH_RESIST}}</div>
+  </div>
+
+  <div class="sec-card">
+    <h3 style="margin-top:0">创业板指 <span class="{{CY_DIR}}">{{CY_CLOSE}}（{{CY_CHG_PCT}}）</span></h3>
+    {{T_CY_ANALYSIS}}
+    <div class="kv">支撑位：{{T_CY_SUPPORT}}<br>压力位：{{T_CY_RESIST}}</div>
+  </div>
+
+  <div class="sec-card">
+    <h3 style="margin-top:0">科创50 <span class="{{KC_DIR}}">{{KC_CLOSE}}（{{KC_CHG_PCT}}）</span></h3>
+    {{T_KC_ANALYSIS}}
+    <div class="kv">支撑位：{{T_KC_SUPPORT}}<br>压力位：{{T_KC_RESIST}}</div>
+  </div>
+
+  <div class="sec-card">
+    <h3 style="margin-top:0">深证成指 <span class="{{SZ_DIR}}">{{SZ_CLOSE}}（{{SZ_CHG_PCT}}）</span></h3>
+    {{T_SZ_ANALYSIS}}
+    <div class="kv">支撑位：{{T_SZ_SUPPORT}}<br>压力位：{{T_SZ_RESIST}}</div>
+  </div>
+</section>
+
+<!-- ==================== 三、板块涨跌 ==================== -->
+<section>
+  <h2>三、板块涨跌（{{SECTOR_CALiber}}口径）</h2>
+
+  <h3 class="up">涨幅前三</h3>
+  <table>
+    <tr><th>板块</th><th>最新点位</th><th>当日</th><th>近5日</th><th>近20日</th></tr>
+    <tr><td class="l">{{G1_NAME}}</td><td>{{G1_PX}}</td><td class="{{G1_DIR}}">{{G1_CHG}}</td><td class="{{G1_DIR}}">{{G1_5D}}</td><td>{{G1_20D}}</td></tr>
+    <tr><td class="l">{{G2_NAME}}</td><td>{{G2_PX}}</td><td class="{{G2_DIR}}">{{G2_CHG}}</td><td class="{{G2_DIR}}">{{G2_5D}}</td><td>{{G2_20D}}</td></tr>
+    <tr><td class="l">{{G3_NAME}}</td><td>{{G3_PX}}</td><td class="{{G3_DIR}}">{{G3_CHG}}</td><td class="{{G3_DIR}}">{{G3_5D}}</td><td>{{G3_20D}}</td></tr>
+  </table>
+  <!-- 每个板块一条 <li>：领涨细分/龙头股 + 当日市场消息（最新事件优先，如贵金属须结合金银走势）+ 技术形态 -->
+  {{GAINER_ANALYSIS}}
+
+  <h3 class="down">跌幅前三</h3>
+  <table>
+    <tr><th>板块</th><th>最新点位</th><th>当日</th><th>近5日</th><th>近20日</th></tr>
+    <tr><td class="l">{{L1_NAME}}</td><td>{{L1_PX}}</td><td class="{{L1_DIR}}">{{L1_CHG}}</td><td class="{{L1_DIR}}">{{L1_5D}}</td><td>{{L1_20D}}</td></tr>
+    <tr><td class="l">{{L2_NAME}}</td><td>{{L2_PX}}</td><td class="{{L2_DIR}}">{{L2_CHG}}</td><td class="{{L2_DIR}}">{{L2_5D}}</td><td>{{L2_20D}}</td></tr>
+    <tr><td class="l">{{L3_NAME}}</td><td>{{L3_PX}}</td><td class="{{L3_DIR}}">{{L3_CHG}}</td><td class="{{L3_DIR}}">{{L3_5D}}</td><td>{{L3_20D}}</td></tr>
+  </table>
+  {{LOSER_ANALYSIS}}
+</section>
+
+<!-- ==================== 四、关注板块 ==================== -->
+<section>
+  <h2>四、关注板块：{{W1_NAME}} · {{W2_NAME}} · {{W3_NAME}}</h2>
+  <!-- 默认跟踪：半导体(pt01801081)、通信(pt01801770)、有色金属(pt01801050)；
+       用户指定其他板块时替换名称与代码。每个板块 3 条 <li>：消息面/资金面/技术面 -->
+  <div class="sec-card">
+    <h3 style="margin-top:0">{{W1_NAME}} <span class="{{W1_DIR}}">{{W1_CHG}}</span><br><span class="pt">最新 {{W1_PX}} 点 · 5日 {{W1_5D}} · 20日 {{W1_20D}}</span></h3>
+    {{W1_ANALYSIS}}
+  </div>
+  <div class="sec-card">
+    <h3 style="margin-top:0">{{W2_NAME}} <span class="{{W2_DIR}}">{{W2_CHG}}</span><br><span class="pt">最新 {{W2_PX}} 点 · 5日 {{W2_5D}} · 20日 {{W2_20D}}</span></h3>
+    {{W2_ANALYSIS}}
+  </div>
+  <div class="sec-card">
+    <h3 style="margin-top:0">{{W3_NAME}} <span class="{{W3_DIR}}">{{W3_CHG}}</span><br><span class="pt">最新 {{W3_PX}} 点 · 5日 {{W3_5D}} · 20日 {{W3_20D}}</span></h3>
+    {{W3_ANALYSIS}}
+  </div>
+  <div class="concl"><b>关注板块小结：</b><br>{{W_SUMMARY}}</div>
+</section>
+
+<!-- ==================== 五、外围市场 ==================== -->
+<section>
+  <h2>五、外围市场</h2>
+  <table>
+    <tr><th>指数</th><th>最新收盘</th><th>当日涨跌</th></tr>
+    <tr><td class="l">纳斯达克（{{IXIC_DATE}}）</td><td>{{IXIC_CLOSE}}</td><td class="{{IXIC_DIR}}">{{IXIC_CHG}}</td></tr>
+    <tr><td class="l">韩国综合（{{KR_DATE}}）</td><td>{{KS11_CLOSE}}</td><td class="{{KS11_DIR}}">{{KS11_CHG}}</td></tr>
+    <tr><td class="l">日经225（{{JP_DATE}}）</td><td>{{N225_CLOSE}}</td><td class="{{N225_DIR}}">{{N225_CHG}}</td></tr>
+  </table>
+  <div class="kv">纳斯达克近期：5日 {{IXIC_5D}} · 20日 {{IXIC_20D}} · 60日 {{IXIC_60D}} · 年内 {{IXIC_YTD}}<br>韩国综合：{{KS11_RECENT}}<br>日经225：{{N225_RECENT}}</div>
+  <div style="height:18px"></div>
+  <!-- 3~4 条 <li>：AI 产业链/半导体消息与涨跌联动优先，其次美股整体、机构观点、风险压制因素 -->
+  {{OVERSEAS_ANALYSIS}}
+</section>
+
+<!-- ==================== 六、总结与策略 ==================== -->
+<section>
+  <h2>六、总结与明日（{{NEXT_DATE}}）展望</h2>
+  <!-- 大势判断一段：基于数据的位置阶段判断 + 明日关键观察位 + 量能含义；不要求确定性结论 -->
+  <div class="concl"><b>大势判断：</b>{{OUTLOOK_SUMMARY}}</div>
+
+  <!-- 策略卡片：每标的一张，避免宽表格在手机上挤成一团 -->
+  <div class="stg-card">
+    <div class="stg-head">上证指数<span class="stg-px">最新 {{SH_CLOSE}}</span></div>
+    <div class="stg-row"><b>预判：</b>{{S_SH_VIEW}}</div>
+    <div class="stg-row"><b>策略：</b>{{S_SH_ACTION}}</div>
+  </div>
+  <div class="stg-card">
+    <div class="stg-head">深证成指<span class="stg-px">最新 {{SZ_CLOSE}}</span></div>
+    <div class="stg-row"><b>预判：</b>{{S_SZ_VIEW}}</div>
+    <div class="stg-row"><b>策略：</b>{{S_SZ_ACTION}}</div>
+  </div>
+  <div class="stg-card">
+    <div class="stg-head">创业板指<span class="stg-px">最新 {{CY_CLOSE}}</span></div>
+    <div class="stg-row"><b>预判：</b>{{S_CY_VIEW}}</div>
+    <div class="stg-row"><b>策略：</b>{{S_CY_ACTION}}</div>
+  </div>
+  <div class="stg-card">
+    <div class="stg-head">科创50<span class="stg-px">最新 {{KC_CLOSE}}</span></div>
+    <div class="stg-row"><b>预判：</b>{{S_KC_VIEW}}</div>
+    <div class="stg-row"><b>策略：</b>{{S_KC_ACTION}}</div>
+  </div>
+  <div class="stg-card">
+    <div class="stg-head">{{W1_NAME}}<span class="stg-px">最新 {{W1_PX}}</span></div>
+    <div class="stg-row"><b>预判：</b>{{S_W1_VIEW}}</div>
+    <div class="stg-row"><b>策略：</b>{{S_W1_ACTION}}</div>
+  </div>
+  <div class="stg-card">
+    <div class="stg-head">{{W2_NAME}}<span class="stg-px">最新 {{W2_PX}}</span></div>
+    <div class="stg-row"><b>预判：</b>{{S_W2_VIEW}}</div>
+    <div class="stg-row"><b>策略：</b>{{S_W2_ACTION}}</div>
+  </div>
+  <div class="stg-card">
+    <div class="stg-head">{{W3_NAME}}<span class="stg-px">最新 {{W3_PX}}</span></div>
+    <div class="stg-row"><b>预判：</b>{{S_W3_VIEW}}</div>
+    <div class="stg-row"><b>策略：</b>{{S_W3_ACTION}}</div>
+  </div>
+
+  <div class="concl"><b>总体仓位建议：</b>{{OUTLOOK_POSITION}}</div>
+</section>
+
+<footer>
+  数据来源：腾讯自选股行情接口（指数 / 板块 / 技术指标 / 分时）、财联社、上海证券报、公开市场新闻。日韩指数行情取自 {{REPORT_DATE}} 收盘，美股为前一交易日隔夜收盘；板块点位为申万行业指数 {{REPORT_DATE}} 收盘值。<br>
+  本报告仅为基于公开数据的复盘分析，不构成任何投资建议。市场有风险，投资需谨慎。
+</footer>
+
+</div>
+</body>
+</html>
